@@ -35,7 +35,8 @@ public class PagoService {
 
         validarDatos(datos);
         validarUsuario(datos.getIdUsuario(), true);
-        validarCompromiso(datos);
+        CompromisosClient.CompromisoResumen compromiso = validarCompromiso(datos);
+        validarPagoNuevo(datos, compromiso);
 
         Pago pago = new Pago();
 
@@ -48,7 +49,65 @@ public class PagoService {
                 limpiarReferencia(datos.getReferenciaComprobante())
         );
         pago.setActivo(true);
+        pago.setEstadoSincronizacion("PENDIENTE");
 
+        Pago registrado = pagoRepository.save(pago);
+        return confirmarSincronizacion(registrado);
+    }
+
+    public Pago confirmarPendiente(Long idPago) {
+
+        Pago pago = buscarPorId(idPago);
+
+        if (!Boolean.TRUE.equals(pago.getActivo())) {
+            throw new ResponseStatusException(
+                    HttpStatus.CONFLICT,
+                    "No se puede confirmar un pago inactivo"
+            );
+        }
+
+        if ("CONFIRMADO".equals(pago.getEstadoSincronizacion())) {
+            return pago;
+        }
+
+        if (!"PENDIENTE".equals(pago.getEstadoSincronizacion())) {
+            throw new ResponseStatusException(
+                    HttpStatus.CONFLICT,
+                    "El pago no tiene un estado de sincronizacion valido"
+            );
+        }
+
+        return confirmarSincronizacion(pago);
+    }
+
+    private Pago confirmarSincronizacion(Pago pago) {
+
+        CompromisosClient.CompromisoResumen compromiso;
+
+        try {
+            compromiso = compromisosClient.marcarComoPagado(
+                    pago.getIdCompromiso()
+            );
+        } catch (FeignException error) {
+            throw new ResponseStatusException(
+                    HttpStatus.SERVICE_UNAVAILABLE,
+                    "El pago quedo PENDIENTE: no se pudo confirmar el compromiso",
+                    error
+            );
+        }
+
+        if (compromiso == null
+                || !pago.getIdCompromiso().equals(compromiso.idCompromiso())
+                || !pago.getIdUsuario().equals(compromiso.idUsuario())
+                || !Boolean.TRUE.equals(compromiso.activo())
+                || !"PAGADO".equalsIgnoreCase(compromiso.estado())) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_GATEWAY,
+                    "El pago quedo PENDIENTE: respuesta invalida de compromisos-service"
+            );
+        }
+
+        pago.setEstadoSincronizacion("CONFIRMADO");
         return pagoRepository.save(pago);
     }
 
@@ -79,9 +138,10 @@ public class PagoService {
 
         validarDatos(datos);
         validarUsuario(datos.getIdUsuario(), false);
-        validarCompromiso(datos);
+        CompromisosClient.CompromisoResumen compromiso = validarCompromiso(datos);
 
         Pago pago = buscarPorId(id);
+        validarModificacion(datos, pago, compromiso);
 
         pago.setIdUsuario(datos.getIdUsuario());
         pago.setIdCompromiso(datos.getIdCompromiso());
@@ -155,7 +215,7 @@ public class PagoService {
         }
     }
 
-    private void validarCompromiso(Pago datos) {
+    private CompromisosClient.CompromisoResumen validarCompromiso(Pago datos) {
 
         CompromisosClient.CompromisoResumen compromiso;
 
@@ -183,7 +243,10 @@ public class PagoService {
 
         if (compromiso == null
                 || compromiso.idCompromiso() == null
-                || compromiso.idUsuario() == null) {
+                || compromiso.idUsuario() == null
+                || compromiso.monto() == null
+                || compromiso.estado() == null
+                || compromiso.activo() == null) {
 
             throw new ResponseStatusException(
                     HttpStatus.BAD_GATEWAY,
@@ -216,6 +279,65 @@ public class PagoService {
             throw new ResponseStatusException(
                     HttpStatus.BAD_REQUEST,
                     "El compromiso no pertenece al usuario indicado"
+            );
+        }
+
+        return compromiso;
+    }
+
+    private void validarPagoNuevo(
+            Pago datos,
+            CompromisosClient.CompromisoResumen compromiso
+    ) {
+        if (!"PENDIENTE".equalsIgnoreCase(compromiso.estado().trim())) {
+            throw new ResponseStatusException(
+                    HttpStatus.CONFLICT,
+                    "Solo se pueden pagar compromisos pendientes"
+            );
+        }
+
+        if (datos.getMonto().compareTo(compromiso.monto()) != 0) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "El monto debe coincidir con el compromiso"
+            );
+        }
+
+        if (pagoRepository.existsByIdCompromisoAndActivoTrue(
+                datos.getIdCompromiso()
+        )) {
+            throw new ResponseStatusException(
+                    HttpStatus.CONFLICT,
+                    "El compromiso ya tiene un pago registrado"
+            );
+        }
+    }
+
+    private void validarModificacion(
+            Pago datos,
+            Pago pago,
+            CompromisosClient.CompromisoResumen compromiso
+    ) {
+        if (!Boolean.TRUE.equals(pago.getActivo())) {
+            throw new ResponseStatusException(
+                    HttpStatus.CONFLICT,
+                    "No se pueden modificar pagos inactivos"
+            );
+        }
+
+        if (!pago.getIdUsuario().equals(datos.getIdUsuario())
+                || !pago.getIdCompromiso().equals(datos.getIdCompromiso())) {
+            throw new ResponseStatusException(
+                    HttpStatus.CONFLICT,
+                    "No se puede cambiar el usuario ni el compromiso de un pago"
+            );
+        }
+
+        if (datos.getMonto().compareTo(compromiso.monto()) != 0
+                || datos.getMonto().compareTo(pago.getMonto()) != 0) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "No se puede modificar el monto del pago"
             );
         }
     }

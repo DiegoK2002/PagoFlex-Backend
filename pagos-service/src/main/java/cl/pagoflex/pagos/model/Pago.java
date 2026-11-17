@@ -33,6 +33,9 @@ public class Pago {
     @Column(nullable = false)
     private Boolean activo = true;
 
+    @Column(name = "estado_sincronizacion", length = 30)
+    private String estadoSincronizacion = "PENDIENTE";
+
     public Pago() {
     }
 
@@ -98,5 +101,13 @@ public class Pago {
 
     public void setActivo(Boolean activo) {
         this.activo = activo;
+    }
+
+    public String getEstadoSincronizacion() {
+        return estadoSincronizacion;
+    }
+
+    public void setEstadoSincronizacion(String estadoSincronizacion) {
+        this.estadoSincronizacion = estadoSincronizacion;
     }
 }

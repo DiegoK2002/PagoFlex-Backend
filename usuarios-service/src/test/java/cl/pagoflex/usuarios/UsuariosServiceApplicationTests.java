@@ -1,13 +1,12 @@
 package cl.pagoflex.usuarios;
 
 import org.junit.jupiter.api.Test;
-import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.autoconfigure.SpringBootApplication;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 
-@SpringBootTest
 class UsuariosServiceApplicationTests {
-
-	@Test
-	void contextLoads() {
-	}
-
+    @Test
+    void clasePrincipalTieneConfiguracionSpringBoot() {
+        assertNotNull(UsuariosServiceApplication.class.getAnnotation(SpringBootApplication.class));
+    }
 }

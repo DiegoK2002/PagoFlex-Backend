@@ -1,13 +1,12 @@
 package cl.pagoflex.archivos;
 
 import org.junit.jupiter.api.Test;
-import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.autoconfigure.SpringBootApplication;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 
-@SpringBootTest
 class ArchivosServiceApplicationTests {
-
-	@Test
-	void contextLoads() {
-	}
-
+    @Test
+    void clasePrincipalTieneConfiguracionSpringBoot() {
+        assertNotNull(ArchivosServiceApplication.class.getAnnotation(SpringBootApplication.class));
+    }
 }

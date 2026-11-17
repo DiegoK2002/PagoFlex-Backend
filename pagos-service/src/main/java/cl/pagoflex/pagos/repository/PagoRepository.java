@@ -9,4 +9,12 @@ public interface PagoRepository extends JpaRepository<Pago, Long> {
     List<Pago> findByIdUsuario(Long idUsuario);
 
     List<Pago> findByIdCompromiso(Long idCompromiso);
+
+    boolean existsByIdCompromisoAndActivoTrue(
+            Long idCompromiso
+    );
+
+    List<Pago> findByEstadoSincronizacionAndActivoTrue(
+            String estadoSincronizacion
+    );
 }

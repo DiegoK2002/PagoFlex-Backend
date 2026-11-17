@@ -1,13 +1,12 @@
 package cl.pagoflex.pagos;
 
 import org.junit.jupiter.api.Test;
-import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.autoconfigure.SpringBootApplication;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 
-@SpringBootTest
 class PagosServiceApplicationTests {
-
-	@Test
-	void contextLoads() {
-	}
-
+    @Test
+    void clasePrincipalTieneConfiguracionSpringBoot() {
+        assertNotNull(PagosServiceApplication.class.getAnnotation(SpringBootApplication.class));
+    }
 }

@@ -69,6 +69,41 @@ public class CompromisoService {
         return compromisoRepository.findByIdUsuario(idUsuario);
     }
 
+
+    
+    public Compromiso marcarComoPagado(Long id) {
+
+        if (id == null || id <= 0L) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "El identificador del compromiso es invalido"
+            );
+        }
+
+        int actualizados =
+                compromisoRepository.marcarComoPagadoSiPendiente(id);
+
+        Compromiso compromiso = buscarPorId(id);
+
+        if (actualizados == 1) {
+            return compromiso;
+        }
+
+        if (Boolean.TRUE.equals(compromiso.getActivo())
+                && "PAGADO".equalsIgnoreCase(
+                        compromiso.getEstado()
+                )) {
+            return compromiso;
+        }
+
+        throw new ResponseStatusException(
+                HttpStatus.CONFLICT,
+                "El compromiso no esta pendiente o esta inactivo"
+        );
+    }
+
+
+
     public Compromiso actualizar(Long id, Compromiso datos) {
 
         validarDatos(datos);
