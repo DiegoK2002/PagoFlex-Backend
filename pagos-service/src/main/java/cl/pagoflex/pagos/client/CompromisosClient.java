@@ -5,6 +5,7 @@ import java.math.BigDecimal;
 import org.springframework.cloud.openfeign.FeignClient;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.PostMapping;
 
 @FeignClient(name = "compromisos-service")
@@ -15,6 +16,11 @@ public interface CompromisosClient {
             @PathVariable("id") Long id
     );
 
+    @GetMapping("/api/v1/compromisos/{id}")
+    CompromisoResumen buscarPorIdAutenticado(
+            @PathVariable("id") Long id,
+            @RequestHeader("Authorization") String autorizacion
+    );
     @PostMapping("/internal/compromisos/{id}/marcar-pagado")
     CompromisoResumen marcarComoPagado(
             @PathVariable("id") Long id

@@ -10,6 +10,10 @@ public record RecuperarContrasenaRequest(
     @Email(message = "El correo no es válido")
     String correo,
 
+    @NotBlank(message = "El RUT es obligatorio")
+    @Size(max = 20)
+    String rut,
+
     @NotBlank(message = "La nueva contraseña es obligatoria")
     @Size(min = 8, max = 72)
     String contrasenaNueva

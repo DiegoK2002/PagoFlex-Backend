@@ -21,10 +21,11 @@ public class PagoController {
 
     @PostMapping
     public ResponseEntity<Pago> registrar(
+            @RequestHeader(value = "Authorization", required = false) String autorizacion,
             @RequestBody Pago datos
     ) {
 
-        Pago pago = pagoService.registrar(datos);
+        Pago pago = pagoService.registrar(datos, autorizacion);
 
         return ResponseEntity
                 .status(HttpStatus.CREATED)
@@ -32,60 +33,70 @@ public class PagoController {
     }
 
     @GetMapping
-    public ResponseEntity<List<Pago>> listarTodos() {
+    public ResponseEntity<List<Pago>> listarTodos(
+            @RequestHeader(value = "Authorization", required = false) String autorizacion
+    ) {
 
         return ResponseEntity.ok(
-                pagoService.listarTodos()
+                pagoService.listarTodosAutorizado(autorizacion)
         );
     }
 
     @GetMapping("/{id}")
     public ResponseEntity<Pago> buscarPorId(
-            @PathVariable Long id
+            @PathVariable Long id,
+            @RequestHeader(value = "Authorization", required = false) String autorizacion
     ) {
 
         return ResponseEntity.ok(
-                pagoService.buscarPorId(id)
+                pagoService.buscarPorIdAutorizado(id, autorizacion)
         );
     }
 
     @GetMapping("/usuario/{idUsuario}")
     public ResponseEntity<List<Pago>> listarPorUsuario(
-            @PathVariable Long idUsuario
+            @PathVariable Long idUsuario,
+            @RequestHeader(value = "Authorization", required = false) String autorizacion
     ) {
 
         return ResponseEntity.ok(
-                pagoService.listarPorUsuario(idUsuario)
+                pagoService.listarPorUsuarioAutorizado(idUsuario, autorizacion)
         );
     }
 
     @GetMapping("/compromiso/{idCompromiso}")
     public ResponseEntity<List<Pago>> listarPorCompromiso(
-            @PathVariable Long idCompromiso
+            @PathVariable Long idCompromiso,
+            @RequestHeader(value = "Authorization", required = false) String autorizacion
     ) {
 
         return ResponseEntity.ok(
-                pagoService.listarPorCompromiso(idCompromiso)
+                pagoService.listarPorCompromisoAutorizado(
+                        idCompromiso,
+                        autorizacion
+                )
         );
     }
 
     @PutMapping("/{id}")
     public ResponseEntity<Pago> actualizar(
             @PathVariable Long id,
+            @RequestHeader(value = "Authorization", required = false) String autorizacion,
             @RequestBody Pago datos
     ) {
 
         return ResponseEntity.ok(
-                pagoService.actualizar(id, datos)
+                pagoService.actualizarAutorizado(id, datos, autorizacion)
         );
     }
 
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> eliminar(
-            @PathVariable Long id
+            @PathVariable Long id,
+            @RequestHeader(value = "Authorization", required = false) String autorizacion
     ) {
 
-        pagoService.eliminar(id);
+        pagoService.eliminarAutorizado(id, autorizacion);
 
         return ResponseEntity.noContent().build();
     }

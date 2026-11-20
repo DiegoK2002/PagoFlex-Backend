@@ -133,8 +133,34 @@ class UsuarioServiceTest {
                 .thenReturn(Optional.of(usuario));
         when(encoder.encode("NuevaClave123!")).thenReturn("nuevo-hash");
         servicio.recuperarContrasena(new RecuperarContrasenaRequest(
-                " ANA@EXAMPLE.COM ", "NuevaClave123!"));
+                " ANA@EXAMPLE.COM ", "11.111.111-1", "NuevaClave123!"));
         assertEquals("nuevo-hash", usuario.getContrasenaHash());
         verify(repositorio).save(usuario);
+    }
+
+    @Test
+    void rechazaRecuperacionConRutDistinto() {
+        Usuario usuario = usuarioActivo();
+        when(repositorio.findByCorreoIgnoreCase("ana@example.com"))
+                .thenReturn(Optional.of(usuario));
+        var error = assertThrows(ResponseStatusException.class, () ->
+                servicio.recuperarContrasena(new RecuperarContrasenaRequest(
+                        "ana@example.com", "22.222.222-2", "NuevaClave123!")));
+        assertEquals(HttpStatus.NOT_FOUND, error.getStatusCode());
+        assertEquals("hash", usuario.getContrasenaHash());
+        verify(repositorio, never()).save(any());
+    }
+
+    @Test
+    void rechazaRecuperacionDeCuentaDesactivada() {
+        Usuario usuario = usuarioActivo();
+        usuario.setActivo(false);
+        when(repositorio.findByCorreoIgnoreCase("ana@example.com"))
+                .thenReturn(Optional.of(usuario));
+        var error = assertThrows(ResponseStatusException.class, () ->
+                servicio.recuperarContrasena(new RecuperarContrasenaRequest(
+                        "ana@example.com", "11.111.111-1", "NuevaClave123!")));
+        assertEquals(HttpStatus.NOT_FOUND, error.getStatusCode());
+        verify(repositorio, never()).save(any());
     }
 }

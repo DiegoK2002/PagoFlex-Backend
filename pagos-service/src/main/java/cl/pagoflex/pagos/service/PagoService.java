@@ -20,22 +20,31 @@ public class PagoService {
     private final PagoRepository pagoRepository;
     private final CompromisosClient compromisosClient;
     private final UsuariosClient usuariosClient;
+    private final AutorizacionPagoService autorizacionPagoService;
 
     public PagoService(
             PagoRepository pagoRepository,
             CompromisosClient compromisosClient,
-            UsuariosClient usuariosClient
+            UsuariosClient usuariosClient,
+            AutorizacionPagoService autorizacionPagoService
     ) {
         this.pagoRepository = pagoRepository;
         this.compromisosClient = compromisosClient;
         this.usuariosClient = usuariosClient;
+        this.autorizacionPagoService = autorizacionPagoService;
     }
 
-    public Pago registrar(Pago datos) {
+    public Pago registrar(Pago datos, String autorizacion) {
+
+        autorizacionPagoService.exigirPropietarioOAdministrador(
+                autorizacion,
+                datos == null ? null : datos.getIdUsuario()
+        );
 
         validarDatos(datos);
         validarUsuario(datos.getIdUsuario(), true);
-        CompromisosClient.CompromisoResumen compromiso = validarCompromiso(datos);
+        CompromisosClient.CompromisoResumen compromiso =
+                validarCompromiso(datos, autorizacion);
         validarPagoNuevo(datos, compromiso);
 
         Pago pago = new Pago();
@@ -115,6 +124,15 @@ public class PagoService {
         return pagoRepository.findAll();
     }
 
+    public List<Pago> listarTodosAutorizado(String autorizacion) {
+        autorizacionPagoService.exigirPropietarioOAdministrador(
+                autorizacion,
+                null
+        );
+
+        return listarTodos();
+    }
+
     public Pago buscarPorId(Long id) {
 
         return pagoRepository.findById(id)
@@ -126,19 +144,131 @@ public class PagoService {
                 );
     }
 
+    public Pago buscarPorIdAutorizado(
+            Long id,
+            String autorizacion
+    ) {
+        Pago pago = buscarPorId(id);
+
+        autorizacionPagoService.exigirPropietarioOAdministrador(
+                autorizacion,
+                pago.getIdUsuario()
+        );
+
+        return pago;
+    }
     public List<Pago> listarPorUsuario(Long idUsuario) {
         return pagoRepository.findByIdUsuario(idUsuario);
+    }
+
+    public List<Pago> listarPorUsuarioAutorizado(
+            Long idUsuario,
+            String autorizacion
+    ) {
+        autorizacionPagoService.exigirPropietarioOAdministrador(
+                autorizacion,
+                idUsuario
+        );
+
+        return listarPorUsuario(idUsuario);
     }
 
     public List<Pago> listarPorCompromiso(Long idCompromiso) {
         return pagoRepository.findByIdCompromiso(idCompromiso);
     }
 
-    public Pago actualizar(Long id, Pago datos) {
+    public List<Pago> listarPorCompromisoAutorizado(
+            Long idCompromiso,
+            String autorizacion
+    ) {
+        if (autorizacion == null
+                || !autorizacion.startsWith("Basic ")
+                || autorizacion.substring(6).isBlank()) {
+            throw new ResponseStatusException(
+                    HttpStatus.UNAUTHORIZED,
+                    "Autenticacion requerida"
+            );
+        }
 
+        CompromisosClient.CompromisoResumen compromiso;
+
+        try {
+            compromiso = compromisosClient.buscarPorIdAutenticado(
+                    idCompromiso,
+                    autorizacion
+            );
+        } catch (FeignException.Unauthorized error) {
+            throw new ResponseStatusException(
+                    HttpStatus.UNAUTHORIZED,
+                    "Credenciales invalidas"
+            );
+        } catch (FeignException.Forbidden error) {
+            throw new ResponseStatusException(
+                    HttpStatus.FORBIDDEN,
+                    "Acceso denegado"
+            );
+        } catch (FeignException.NotFound error) {
+            throw new ResponseStatusException(
+                    HttpStatus.NOT_FOUND,
+                    "Compromiso no encontrado"
+            );
+        } catch (FeignException error) {
+            throw new ResponseStatusException(
+                    HttpStatus.SERVICE_UNAVAILABLE,
+                    "No se pudo verificar el compromiso"
+            );
+        }
+
+        if (compromiso == null
+                || !idCompromiso.equals(compromiso.idCompromiso())
+                || compromiso.idUsuario() == null) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_GATEWAY,
+                    "Respuesta invalida de compromisos-service"
+            );
+        }
+
+        autorizacionPagoService.exigirPropietarioOAdministrador(
+                autorizacion,
+                compromiso.idUsuario()
+        );
+
+        return listarPorCompromiso(idCompromiso);
+    }
+
+    public Pago actualizar(Long id, Pago datos) {
+        return actualizarInterno(id, datos, null);
+    }
+
+    public Pago actualizarAutorizado(
+            Long id,
+            Pago datos,
+            String autorizacion
+    ) {
+        autorizacionPagoService.exigirPropietarioOAdministrador(
+                autorizacion,
+                datos == null ? null : datos.getIdUsuario()
+        );
+
+        Pago existente = buscarPorId(id);
+
+        autorizacionPagoService.exigirPropietarioOAdministrador(
+                autorizacion,
+                existente.getIdUsuario()
+        );
+
+        return actualizarInterno(id, datos, autorizacion);
+    }
+
+    private Pago actualizarInterno(
+            Long id,
+            Pago datos,
+            String autorizacion
+    ) {
         validarDatos(datos);
         validarUsuario(datos.getIdUsuario(), false);
-        CompromisosClient.CompromisoResumen compromiso = validarCompromiso(datos);
+        CompromisosClient.CompromisoResumen compromiso =
+                validarCompromiso(datos, autorizacion);
 
         Pago pago = buscarPorId(id);
         validarModificacion(datos, pago, compromiso);
@@ -153,6 +283,18 @@ public class PagoService {
         );
 
         return pagoRepository.save(pago);
+    }
+
+    public void eliminarAutorizado(
+            Long id,
+            String autorizacion
+    ) {
+        autorizacionPagoService.exigirPropietarioOAdministrador(
+                autorizacion,
+                null
+        );
+
+        eliminar(id);
     }
 
     public void eliminar(Long id) {
@@ -216,14 +358,24 @@ public class PagoService {
     }
 
     private CompromisosClient.CompromisoResumen validarCompromiso(Pago datos) {
+        return validarCompromiso(datos, null);
+    }
+
+    private CompromisosClient.CompromisoResumen validarCompromiso(
+            Pago datos,
+            String autorizacion
+    ) {
 
         CompromisosClient.CompromisoResumen compromiso;
 
         try {
 
-            compromiso = compromisosClient.buscarPorId(
-                    datos.getIdCompromiso()
-            );
+            compromiso = autorizacion == null
+                    ? compromisosClient.buscarPorId(datos.getIdCompromiso())
+                    : compromisosClient.buscarPorIdAutenticado(
+                            datos.getIdCompromiso(),
+                            autorizacion
+                    );
 
         } catch (FeignException.NotFound error) {
 

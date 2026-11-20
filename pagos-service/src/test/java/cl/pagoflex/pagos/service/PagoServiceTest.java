@@ -20,13 +20,16 @@ class PagoServiceTest {
     private CompromisosClient compromisos;
     private UsuariosClient usuarios;
     private PagoService servicio;
+    private AutorizacionPagoService autorizacion;
+    private static final String AUTORIZACION_PRUEBA = "Basic dGVzdDp0ZXN0";
 
     @BeforeEach
     void preparar() {
         repositorio = mock(PagoRepository.class);
         compromisos = mock(CompromisosClient.class);
         usuarios = mock(UsuariosClient.class);
-        servicio = new PagoService(repositorio, compromisos, usuarios);
+        autorizacion = mock(AutorizacionPagoService.class);
+        servicio = new PagoService(repositorio, compromisos, usuarios, autorizacion);
     }
 
     private Pago pago() {
@@ -44,7 +47,7 @@ class PagoServiceTest {
 
     private void prepararReferencias() {
         when(usuarios.buscarPorId(3L)).thenReturn(new UsuariosClient.UsuarioResumen(3L, true));
-        when(compromisos.buscarPorId(6L)).thenReturn(new CompromisosClient.CompromisoResumen(
+        when(compromisos.buscarPorIdAutenticado(6L, AUTORIZACION_PRUEBA)).thenReturn(new CompromisosClient.CompromisoResumen(
                 6L, 3L, new BigDecimal("18000"), "PENDIENTE", true));
     }
 
@@ -54,7 +57,7 @@ class PagoServiceTest {
         when(compromisos.marcarComoPagado(6L)).thenReturn(new CompromisosClient.CompromisoResumen(
                 6L, 3L, new BigDecimal("18000"), "PAGADO", true));
         when(repositorio.save(any(Pago.class))).thenAnswer(inv -> inv.getArgument(0));
-        Pago resultado = servicio.registrar(pago());
+        Pago resultado = servicio.registrar(pago(), AUTORIZACION_PRUEBA);
         assertEquals("CONFIRMADO", resultado.getEstadoSincronizacion());
         verify(repositorio, times(2)).save(any(Pago.class));
         verify(compromisos).marcarComoPagado(6L);
@@ -65,7 +68,7 @@ class PagoServiceTest {
         prepararReferencias();
         Pago datos = pago();
         datos.setMonto(new BigDecimal("15000"));
-        var error = assertThrows(ResponseStatusException.class, () -> servicio.registrar(datos));
+        var error = assertThrows(ResponseStatusException.class, () -> servicio.registrar(datos, AUTORIZACION_PRUEBA));
         assertEquals(HttpStatus.BAD_REQUEST, error.getStatusCode());
         verify(repositorio, never()).save(any());
     }
@@ -76,7 +79,7 @@ class PagoServiceTest {
         Pago datos = pago();
         datos.setIdUsuario(2L);
         when(usuarios.buscarPorId(2L)).thenReturn(new UsuariosClient.UsuarioResumen(2L, true));
-        var error = assertThrows(ResponseStatusException.class, () -> servicio.registrar(datos));
+        var error = assertThrows(ResponseStatusException.class, () -> servicio.registrar(datos, AUTORIZACION_PRUEBA));
         assertEquals(HttpStatus.BAD_REQUEST, error.getStatusCode());
         verify(repositorio, never()).save(any());
     }
@@ -84,9 +87,9 @@ class PagoServiceTest {
     @Test
     void rechazaCompromisoYaPagado() {
         prepararReferencias();
-        when(compromisos.buscarPorId(6L)).thenReturn(new CompromisosClient.CompromisoResumen(
+        when(compromisos.buscarPorIdAutenticado(6L, AUTORIZACION_PRUEBA)).thenReturn(new CompromisosClient.CompromisoResumen(
                 6L, 3L, new BigDecimal("18000"), "PAGADO", true));
-        var error = assertThrows(ResponseStatusException.class, () -> servicio.registrar(pago()));
+        var error = assertThrows(ResponseStatusException.class, () -> servicio.registrar(pago(), AUTORIZACION_PRUEBA));
         assertEquals(HttpStatus.CONFLICT, error.getStatusCode());
     }
 
@@ -94,7 +97,7 @@ class PagoServiceTest {
     void rechazaPagoActivoDuplicado() {
         prepararReferencias();
         when(repositorio.existsByIdCompromisoAndActivoTrue(6L)).thenReturn(true);
-        var error = assertThrows(ResponseStatusException.class, () -> servicio.registrar(pago()));
+        var error = assertThrows(ResponseStatusException.class, () -> servicio.registrar(pago(), AUTORIZACION_PRUEBA));
         assertEquals(HttpStatus.CONFLICT, error.getStatusCode());
         verify(repositorio, never()).save(any());
     }
@@ -124,7 +127,7 @@ class PagoServiceTest {
     void rechazaPagoConMontoNegativo() {
         Pago p = pago();
         p.setMonto(new BigDecimal("-1"));
-        var error = assertThrows(ResponseStatusException.class, () -> servicio.registrar(p));
+        var error = assertThrows(ResponseStatusException.class, () -> servicio.registrar(p, AUTORIZACION_PRUEBA));
         assertEquals(HttpStatus.BAD_REQUEST, error.getStatusCode());
         verifyNoInteractions(usuarios, compromisos);
     }

@@ -24,7 +24,6 @@ public class UsuarioController {
         this.usuarioService = usuarioService;
     }
 
-    // REGISTRAR UN USUARIO
     @PostMapping("/registro")
     public ResponseEntity<UsuarioResponse> registrar(
             @Valid @RequestBody RegistroUsuarioRequest request
@@ -37,7 +36,6 @@ public class UsuarioController {
                 .body(usuario);
     }
 
-    // INICIAR SESIÓN
     @PostMapping("/login")
     public ResponseEntity<UsuarioResponse> iniciarSesion(
             @Valid @RequestBody LoginRequest request
@@ -48,7 +46,6 @@ public class UsuarioController {
         return ResponseEntity.ok(usuario);
     }
 
-    // BUSCAR USUARIO POR ID
     @GetMapping("/{id}")
     public ResponseEntity<UsuarioResponse> buscarPorId(
             @PathVariable Long id
@@ -60,7 +57,6 @@ public class UsuarioController {
     }
 
 
-    // LISTAR TODOS LOS USUARIOS
     @GetMapping
     public ResponseEntity<java.util.List<UsuarioResponse>> listarTodos() {
 
@@ -71,7 +67,6 @@ public class UsuarioController {
     }
 
 
-    // ACTUALIZAR LOS DATOS DE UN USUARIO
     @PutMapping("/{id}")
     public ResponseEntity<UsuarioResponse> actualizarUsuario(
             @PathVariable Long id,
@@ -85,7 +80,6 @@ public class UsuarioController {
     }
 
 
-    // DESACTIVAR UN USUARIO
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> eliminarUsuario(
             @PathVariable Long id
@@ -97,7 +91,6 @@ public class UsuarioController {
     }
 
 
-    // CAMBIAR CONTRASEÑA DE UN USUARIO
     @PutMapping("/{id}/contrasena")
     public ResponseEntity<Void> cambiarContrasena(
             @PathVariable Long id,
@@ -110,7 +103,6 @@ public class UsuarioController {
     }
 
 
-    // RECUPERAR CONTRASEÑA
     @PutMapping("/recuperar-contrasena")
     public ResponseEntity<Void> recuperarContrasena(
             @Valid @RequestBody RecuperarContrasenaRequest request

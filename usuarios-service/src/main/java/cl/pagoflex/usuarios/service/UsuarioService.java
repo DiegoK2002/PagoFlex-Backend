@@ -175,7 +175,6 @@ public UsuarioResponse actualizarUsuario(
         ActualizarUsuarioRequest request
 ) {
 
-    // Buscar al usuario por su ID
     Usuario usuario = usuarioRepository
             .findById(id)
             .orElseThrow(() ->
@@ -185,12 +184,10 @@ public UsuarioResponse actualizarUsuario(
                     )
             );
 
-    // Normalizar el correo
     String correo = request.correo()
             .trim()
             .toLowerCase(Locale.ROOT);
 
-    // Comprobar que el correo no pertenezca a otro usuario
     usuarioRepository.findByCorreoIgnoreCase(correo)
             .ifPresent(otroUsuario -> {
                 if (!otroUsuario.getIdUsuario()
@@ -201,13 +198,11 @@ public UsuarioResponse actualizarUsuario(
                 }
             });
 
-    // Actualizar los datos
     usuario.setNombres(request.nombres().trim());
     usuario.setApellidos(request.apellidos().trim());
     usuario.setCorreo(correo);
     usuario.setComuna(request.comuna().trim());
 
-    // Guardar en MariaDB
     Usuario actualizado = usuarioRepository.save(usuario);
 
     return convertirRespuesta(actualizado);
@@ -217,7 +212,6 @@ public UsuarioResponse actualizarUsuario(
 @Transactional
 public void eliminarUsuario(Long id) {
 
-    // Buscar el usuario
     Usuario usuario = usuarioRepository
             .findById(id)
             .orElseThrow(() ->
@@ -227,10 +221,8 @@ public void eliminarUsuario(Long id) {
                     )
             );
 
-    // Desactivar la cuenta
     usuario.setActivo(false);
 
-    // Guardar el cambio en MariaDB
     usuarioRepository.save(usuario);
 }
 
@@ -241,7 +233,6 @@ public void cambiarContrasena(
         CambiarContrasenaRequest request
 ) {
 
-    // Buscar al usuario
     Usuario usuario = usuarioRepository
             .findById(id)
             .orElseThrow(() ->
@@ -251,7 +242,6 @@ public void cambiarContrasena(
                     )
             );
 
-    // Comprobar que la cuenta esté activa
     if (!Boolean.TRUE.equals(usuario.getActivo())) {
         throw new ResponseStatusException(
                 HttpStatus.FORBIDDEN,
@@ -259,7 +249,6 @@ public void cambiarContrasena(
         );
     }
 
-    // Comprobar la contraseña actual
     boolean correcta = passwordEncoder.matches(
             request.contrasenaActual(),
             usuario.getContrasenaHash()
@@ -272,7 +261,6 @@ public void cambiarContrasena(
         );
     }
 
-    // Comprobar el límite de BCrypt
     if (request.contrasenaNueva()
             .getBytes(StandardCharsets.UTF_8).length > 72) {
 
@@ -281,12 +269,10 @@ public void cambiarContrasena(
         );
     }
 
-    // Cifrar la nueva contraseña con BCrypt
     String nuevoHash = passwordEncoder.encode(
             request.contrasenaNueva()
     );
 
-    // Guardar el nuevo hash
     usuario.setContrasenaHash(nuevoHash);
     usuarioRepository.save(usuario);
 }
@@ -297,21 +283,35 @@ public void recuperarContrasena(
         RecuperarContrasenaRequest request
 ) {
 
-    // Buscar al usuario por su correo
+    String rutIngresado = RutValidator.normalizarYValidar(
+            request.rut()
+    );
+
     String correo = request.correo()
             .trim()
             .toLowerCase(Locale.ROOT);
+
+    final String datosNoCoinciden = "Los datos ingresados no coinciden";
 
     Usuario usuario = usuarioRepository
             .findByCorreoIgnoreCase(correo)
             .orElseThrow(() ->
                     new ResponseStatusException(
                             HttpStatus.NOT_FOUND,
-                            "Correo no registrado"
+                            datosNoCoinciden
                     )
             );
 
-    // Guardar la contraseña nueva con BCrypt
+    boolean rutCoincide = rutIngresado.equals(usuario.getRut());
+    boolean cuentaActiva = Boolean.TRUE.equals(usuario.getActivo());
+
+    if (!rutCoincide || !cuentaActiva) {
+        throw new ResponseStatusException(
+                HttpStatus.NOT_FOUND,
+                datosNoCoinciden
+        );
+    }
+
     String contrasenaNueva = request.contrasenaNueva();
 
     if (contrasenaNueva.getBytes(StandardCharsets.UTF_8).length > 72) {
