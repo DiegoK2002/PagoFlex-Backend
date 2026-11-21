@@ -42,6 +42,7 @@ class UsuariosDemoConfigTest {
         assertEquals(List.of("USUARIO_FINAL", "AGENTE", "ADMINISTRADOR"),
                 creados.stream().map(u -> u.getRol().getNombreRol()).toList());
         assertTrue(creados.stream().allMatch(u -> "hash-demo".equals(u.getContrasenaHash())));
+        verify(encoder, times(3)).encode("PagoFlex123");
     }
 
     @Test
@@ -73,4 +74,54 @@ class UsuariosDemoConfigTest {
         verify(roles, times(3)).save(any(Rol.class));
         verify(usuarios, times(3)).save(any(Usuario.class));
     }
+
+    @Test
+    void migraSoloLasTresContrasenasDemoAntiguasAlReiniciar() throws Exception {
+        UsuarioRepository usuarios = mock(UsuarioRepository.class);
+        RolRepository roles = mock(RolRepository.class);
+        PasswordEncoder encoder = mock(PasswordEncoder.class);
+        when(usuarios.count()).thenReturn(3L);
+        for (String correo : List.of(
+                "crojas@correo.ejemplo",
+                "alagos@correo.ejemplo",
+                "admin@correo.ejemplo")) {
+            Usuario usuario = new Usuario();
+            usuario.setCorreo(correo);
+            usuario.setContrasenaHash("hash-anterior");
+            when(usuarios.findByCorreoIgnoreCase(correo)).thenReturn(Optional.of(usuario));
+        }
+        when(encoder.matches("DemoPagoFlex2026!", "hash-anterior")).thenReturn(true);
+        when(encoder.encode("PagoFlex123")).thenReturn("hash-nuevo");
+
+        new UsuariosDemoConfig().inicializarUsuariosDemo(usuarios, roles, encoder).run();
+
+        ArgumentCaptor<Usuario> captor = ArgumentCaptor.forClass(Usuario.class);
+        verify(usuarios, times(3)).save(captor.capture());
+        assertTrue(captor.getAllValues().stream().allMatch(
+                u -> "hash-nuevo".equals(u.getContrasenaHash())));
+        verifyNoInteractions(roles);
+    }
+
+    @Test
+    void respetaContrasenaCambiadaYNoBorraUsuariosExistentes() throws Exception {
+        UsuarioRepository usuarios = mock(UsuarioRepository.class);
+        RolRepository roles = mock(RolRepository.class);
+        PasswordEncoder encoder = mock(PasswordEncoder.class);
+        when(usuarios.count()).thenReturn(4L);
+        Usuario usuario = new Usuario();
+        usuario.setCorreo("crojas@correo.ejemplo");
+        usuario.setContrasenaHash("hash-personalizado");
+        when(usuarios.findByCorreoIgnoreCase("crojas@correo.ejemplo"))
+                .thenReturn(Optional.of(usuario));
+        when(encoder.matches("DemoPagoFlex2026!", "hash-personalizado"))
+                .thenReturn(false);
+
+        new UsuariosDemoConfig().inicializarUsuariosDemo(usuarios, roles, encoder).run();
+
+        verify(usuarios, never()).save(any());
+        verify(encoder, never()).encode(anyString());
+        assertEquals("hash-personalizado", usuario.getContrasenaHash());
+        verifyNoInteractions(roles);
+    }
+
 }

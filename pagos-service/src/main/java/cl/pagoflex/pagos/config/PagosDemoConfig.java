@@ -14,12 +14,21 @@ import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 @Configuration
 @EnableScheduling
 public class PagosDemoConfig {
 
     private static final Logger log = LoggerFactory.getLogger(PagosDemoConfig.class);
+    private static final Set<String> COMPROMISOS_PAGADOS = Set.of(
+            "Boleta de agua potable - domicilio",
+            "Consumo de agua - departamento",
+            "Cuenta de agua - segunda vivienda",
+            "Boleta de alcantarillado",
+            "Servicio de agua - local comercial"
+    );
+
     private final PagoRepository pagos;
     private final RestClient http = RestClient.create();
     private boolean inicializado;
@@ -31,16 +40,19 @@ public class PagosDemoConfig {
     @Scheduled(initialDelay = 13000, fixedDelay = 20000)
     public synchronized void cargarDatosDeDemostracion() {
         if (inicializado) return;
-        if (pagos.count() > 0) {
-            inicializado = true;
-            return;
-        }
         try {
+            if (pagos.count() > 0) {
+                actualizarReferenciasIniciales();
+                inicializado = true;
+                return;
+            }
+
             List<Map<String, Object>> compromisos = obtenerCompromisos();
             List<Pago> datos = new ArrayList<>();
             for (Map<String, Object> compromiso : compromisos) {
                 String nombre = String.valueOf(compromiso.get("nombre"));
-                if (!nombre.startsWith("DEMO - PAGADO ")) continue;
+                if (!COMPROMISOS_PAGADOS.contains(nombre)
+                        && !nombre.startsWith("DEMO - PAGADO ")) continue;
                 if (!"PAGADO".equals(String.valueOf(compromiso.get("estado")))) continue;
 
                 long idCompromiso = numero(compromiso, "idCompromiso");
@@ -50,7 +62,7 @@ public class PagosDemoConfig {
                 pago.setMonto(new BigDecimal(String.valueOf(compromiso.get("monto"))));
                 pago.setFechaPago(LocalDate.parse(String.valueOf(compromiso.get("fechaVencimiento"))).minusDays(2));
                 pago.setMetodoPago("TRANSFERENCIA");
-                pago.setReferenciaComprobante("DEMO-COMPROBANTE-" + idCompromiso);
+                pago.setReferenciaComprobante("TRF-PF-" + idCompromiso);
                 pago.setActivo(true);
                 pago.setEstadoSincronizacion("CONFIRMADO");
                 datos.add(pago);
@@ -58,9 +70,19 @@ public class PagosDemoConfig {
             if (datos.size() != 5) return;
             pagos.saveAll(datos);
             inicializado = true;
-            log.info("Datos iniciales: cinco pagos confirmados y puntuales creados");
+            log.info("Cinco pagos iniciales confirmados y puntuales creados");
         } catch (Exception ex) {
-            log.warn("Datos demo de pagos pendientes; se reintentara: {}", ex.getMessage());
+            log.warn("Inicialización de pagos pendiente: {}", ex.getMessage());
+        }
+    }
+
+    private void actualizarReferenciasIniciales() {
+        for (Pago pago : pagos.findAll()) {
+            String referencia = pago.getReferenciaComprobante();
+            if (referencia != null && referencia.startsWith("DEMO-COMPROBANTE-")) {
+                pago.setReferenciaComprobante("TRF-PF-" + pago.getIdCompromiso());
+                pagos.save(pago);
+            }
         }
     }
 
@@ -68,7 +90,7 @@ public class PagosDemoConfig {
     private List<Map<String, Object>> obtenerCompromisos() {
         List<?> valores = http.get()
                 .uri("http://localhost:8083/api/v1/compromisos")
-                .headers(h -> h.setBasicAuth("admin@correo.ejemplo", "DemoPagoFlex2026!"))
+                .headers(h -> h.setBasicAuth("admin@correo.ejemplo", "PagoFlex123"))
                 .retrieve()
                 .body(List.class);
         if (valores == null) return List.of();

@@ -1,6 +1,5 @@
 package cl.pagoflex.archivos.controller;
 
-import cl.pagoflex.archivos.controller.ArchivoController;
 import cl.pagoflex.archivos.service.ArchivoService;
 import cl.pagoflex.archivos.model.Archivo;
 import java.lang.reflect.Method;
@@ -10,7 +9,6 @@ import org.junit.jupiter.api.Test;
 import org.springframework.http.ResponseEntity;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
-import static org.mockito.ArgumentMatchers.*;
 import org.springframework.core.io.ByteArrayResource;
 
 

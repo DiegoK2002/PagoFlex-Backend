@@ -9,12 +9,21 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 import org.springframework.scheduling.annotation.Scheduled;
 
 import java.util.List;
+import java.util.Map;
 
 @Configuration
 @EnableScheduling
 public class EmpresasDemoConfig {
 
     private static final Logger log = LoggerFactory.getLogger(EmpresasDemoConfig.class);
+    private static final Map<String, String> NOMBRES_ANTIGUOS = Map.of(
+            "Agua Cordillera Demo", "Aguas Cordillera",
+            "Energia Central Demo", "Energía Metropolitana",
+            "Fibra Ciudad Demo", "Conecta Hogar Fibra",
+            "Comercio Vecinal Demo", "Comercial Los Robles",
+            "Servicios Urbanos Demo", "Servicios Residenciales Los Aromos"
+    );
+
     private final EmpresaRepository empresas;
     private boolean inicializado;
 
@@ -25,22 +34,28 @@ public class EmpresasDemoConfig {
     @Scheduled(initialDelay = 5000, fixedDelay = 20000)
     public synchronized void cargarDatosDeDemostracion() {
         if (inicializado) return;
-        if (empresas.count() > 0) {
-            inicializado = true;
-            return;
-        }
         try {
-            empresas.saveAll(List.of(
-                    empresa("Agua Cordillera Demo", "Agua"),
-                    empresa("Energia Central Demo", "Electricidad"),
-                    empresa("Fibra Ciudad Demo", "Telecomunicaciones"),
-                    empresa("Comercio Vecinal Demo", "Comercio"),
-                    empresa("Servicios Urbanos Demo", "Servicios")
-            ));
+            if (empresas.count() == 0) {
+                empresas.saveAll(List.of(
+                        empresa("Aguas Cordillera", "Agua"),
+                        empresa("Energía Metropolitana", "Electricidad"),
+                        empresa("Conecta Hogar Fibra", "Telecomunicaciones"),
+                        empresa("Comercial Los Robles", "Comercio"),
+                        empresa("Servicios Residenciales Los Aromos", "Servicios")
+                ));
+                log.info("Cinco empresas iniciales creadas");
+            } else {
+                for (Empresa empresa : empresas.findAll()) {
+                    String nuevoNombre = NOMBRES_ANTIGUOS.get(empresa.getNombre());
+                    if (nuevoNombre != null) {
+                        empresa.setNombre(nuevoNombre);
+                        empresas.save(empresa);
+                    }
+                }
+            }
             inicializado = true;
-            log.info("Datos iniciales: cinco empresas de demostracion creadas");
         } catch (Exception ex) {
-            log.warn("No se pudieron crear empresas demo; se reintentara: {}", ex.getMessage());
+            log.warn("Inicialización de empresas pendiente: {}", ex.getMessage());
         }
     }
 

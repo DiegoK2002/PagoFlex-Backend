@@ -1,8 +1,6 @@
 package cl.pagoflex.empresas.controller;
 
-import cl.pagoflex.empresas.controller.EmpresaController;
 import cl.pagoflex.empresas.service.EmpresaService;
-import cl.pagoflex.empresas.model.Empresa;
 import java.lang.reflect.Method;
 import java.lang.reflect.InvocationTargetException;
 import java.util.Arrays;
@@ -10,8 +8,6 @@ import org.junit.jupiter.api.Test;
 import org.springframework.http.ResponseEntity;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
-import static org.mockito.ArgumentMatchers.*;
-
 
 class ControladorEndpointsTest {
     @Test void todosLosEndpointsDeleganSinLevantarServidor() throws Exception {

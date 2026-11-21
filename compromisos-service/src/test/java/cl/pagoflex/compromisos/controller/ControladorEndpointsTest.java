@@ -1,6 +1,5 @@
 package cl.pagoflex.compromisos.controller;
 
-import cl.pagoflex.compromisos.controller.CompromisoController;
 import cl.pagoflex.compromisos.service.CompromisoService;
 import cl.pagoflex.compromisos.model.Compromiso;
 import java.lang.reflect.Method;
@@ -10,7 +9,6 @@ import org.junit.jupiter.api.Test;
 import org.springframework.http.ResponseEntity;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
-import static org.mockito.ArgumentMatchers.*;
 import cl.pagoflex.compromisos.service.AutorizacionAdministradorService;
 import cl.pagoflex.compromisos.service.AutorizacionLecturaService;
 
