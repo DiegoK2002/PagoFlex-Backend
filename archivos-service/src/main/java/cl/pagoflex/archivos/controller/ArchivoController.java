@@ -1,5 +1,11 @@
 package cl.pagoflex.archivos.controller;
 
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.tags.Tag;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+
 import cl.pagoflex.archivos.model.Archivo;
 import cl.pagoflex.archivos.service.ArchivoService;
 
@@ -15,6 +21,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
+@Tag(name = "Archivos y comprobantes", description = "Carga, metadatos, descarga y desactivación de archivos de usuarios y pagos.")
 @RestController
 @RequestMapping("/api/v1/archivos")
 public class ArchivoController {
@@ -25,15 +32,23 @@ public class ArchivoController {
         this.archivoService = archivoService;
     }
 
+    @Operation(summary = "Subir archivo",
+            description = "Carga un archivo multipart de hasta 10 MB y lo asocia a un usuario y opcionalmente a un pago. Valida nombre, formato y contenido.")
+    @ApiResponses({
+        @ApiResponse(responseCode = "201", description = "Archivo almacenado"),
+        @ApiResponse(responseCode = "400", description = "Archivo o datos inválidos"),
+        @ApiResponse(responseCode = "404", description = "Usuario o pago no encontrado"),
+        @ApiResponse(responseCode = "503", description = "Servicio relacionado no disponible")
+    })
     @PostMapping(
             value = "/subir",
             consumes = MediaType.MULTIPART_FORM_DATA_VALUE
     )
     public ResponseEntity<Archivo> subir(
-            @RequestParam Long idUsuario,
-            @RequestParam(required = false) Long idPago,
-            @RequestParam String tipo,
-            @RequestPart("archivo") MultipartFile archivo
+            @Parameter(description = "Identificador del usuario.") @RequestParam Long idUsuario,
+            @Parameter(description = "Identificador del pago.") @RequestParam(required = false) Long idPago,
+            @Parameter(description = "Tipo de archivo que se desea consultar o registrar.") @RequestParam String tipo,
+            @Parameter(description = "Archivo que se adjunta en la solicitud multipart.") @RequestPart("archivo") MultipartFile archivo
     ) {
 
         Archivo registro = archivoService.subir(
@@ -48,6 +63,11 @@ public class ArchivoController {
                 .body(registro);
     }
 
+    @Operation(summary = "Listar archivos",
+            description = "Consulta los metadatos de los archivos registrados.")
+    @ApiResponses({
+        @ApiResponse(responseCode = "200", description = "Lista de archivos")
+    })
     @GetMapping
     public ResponseEntity<List<Archivo>> listarTodos() {
 
@@ -56,9 +76,15 @@ public class ArchivoController {
         );
     }
 
+    @Operation(summary = "Consultar archivo",
+            description = "Consulta los metadatos de un archivo por ID.")
+    @ApiResponses({
+        @ApiResponse(responseCode = "200", description = "Archivo encontrado"),
+        @ApiResponse(responseCode = "404", description = "Archivo no encontrado")
+    })
     @GetMapping("/{id}")
     public ResponseEntity<Archivo> buscarPorId(
-            @PathVariable Long id
+            @Parameter(description = "Identificador del recurso.") @PathVariable Long id
     ) {
 
         return ResponseEntity.ok(
@@ -66,9 +92,14 @@ public class ArchivoController {
         );
     }
 
+    @Operation(summary = "Listar archivos por usuario",
+            description = "Consulta los archivos asociados al usuario indicado.")
+    @ApiResponses({
+        @ApiResponse(responseCode = "200", description = "Archivos del usuario")
+    })
     @GetMapping("/usuario/{idUsuario}")
     public ResponseEntity<List<Archivo>> listarPorUsuario(
-            @PathVariable Long idUsuario
+            @Parameter(description = "Identificador del usuario.") @PathVariable Long idUsuario
     ) {
 
         return ResponseEntity.ok(
@@ -76,9 +107,14 @@ public class ArchivoController {
         );
     }
 
+    @Operation(summary = "Listar archivos por pago",
+            description = "Consulta los archivos asociados al pago indicado.")
+    @ApiResponses({
+        @ApiResponse(responseCode = "200", description = "Archivos del pago")
+    })
     @GetMapping("/pago/{idPago}")
     public ResponseEntity<List<Archivo>> listarPorPago(
-            @PathVariable Long idPago
+            @Parameter(description = "Identificador del pago.") @PathVariable Long idPago
     ) {
 
         return ResponseEntity.ok(
@@ -86,9 +122,15 @@ public class ArchivoController {
         );
     }
 
+    @Operation(summary = "Listar archivos por tipo",
+            description = "Filtra los archivos mediante su tipo de uso.")
+    @ApiResponses({
+        @ApiResponse(responseCode = "200", description = "Archivos del tipo indicado"),
+        @ApiResponse(responseCode = "400", description = "Tipo inválido")
+    })
     @GetMapping("/tipo/{tipo}")
     public ResponseEntity<List<Archivo>> listarPorTipo(
-            @PathVariable String tipo
+            @Parameter(description = "Tipo de archivo que se desea consultar o registrar.") @PathVariable String tipo
     ) {
 
         return ResponseEntity.ok(
@@ -96,9 +138,15 @@ public class ArchivoController {
         );
     }
 
+    @Operation(summary = "Descargar archivo",
+            description = "Devuelve el contenido binario como adjunto con su tipo MIME y nombre original.")
+    @ApiResponses({
+        @ApiResponse(responseCode = "200", description = "Descarga del archivo"),
+        @ApiResponse(responseCode = "404", description = "Archivo no encontrado o no disponible")
+    })
     @GetMapping("/{id}/descargar")
     public ResponseEntity<Resource> descargar(
-            @PathVariable Long id
+            @Parameter(description = "Identificador del recurso.") @PathVariable Long id
     ) {
 
         Archivo archivo = archivoService.buscarPorId(id);
@@ -127,9 +175,15 @@ public class ArchivoController {
                 .body(recurso);
     }
 
+    @Operation(summary = "Desactivar archivo",
+            description = "Marca el registro como inactivo; esta operación no borra necesariamente el archivo físico.")
+    @ApiResponses({
+        @ApiResponse(responseCode = "204", description = "Archivo desactivado"),
+        @ApiResponse(responseCode = "404", description = "Archivo no encontrado")
+    })
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> eliminar(
-            @PathVariable Long id
+            @Parameter(description = "Identificador del recurso.") @PathVariable Long id
     ) {
 
         archivoService.eliminar(id);
